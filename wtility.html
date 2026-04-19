@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wtility - Unicode Utility</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 2px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            border-color: #3498db;
+        }
+
+        .output-container {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            min-height: 50px;
+            word-wrap: break-word;
+        }
+
+        .unicode-item {
+            display: inline-block;
+            margin: 4px;
+            padding: 4px 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #e67e22;
+        }
+
+        .char-label {
+            color: #7f8c8d;
+            font-size: 0.8rem;
+            display: block;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 2px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-right: 8px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: #3498db;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Wtility - Unicode Utility</h1>
+
+    <div class="controls">
+        <div class="toggle-container" title="チェックを入れると\uXXXX等の入力を自動で文字に変換します">
+            <label class="switch">
+                <input type="checkbox" id="autoConvertToggle" checked>
+                <span class="slider"></span>
+            </label>
+            <label for="autoConvertToggle" style="cursor: pointer; user-select: none;">符号点から自動変換</label>
+        </div>
+    </div>
+
+    <textarea id="textInput" placeholder="ここに入力..."></textarea>
+
+    <div class="output-container" id="output">
+        <span style="color: #999;">ここにUnicodeが表示されます</span>
+    </div>
+
+    <footer>
+        <p class="features">
+            Unicode符号点の取得、符号点からの文字変換を行えるツールです。<br>
+            対応形式：\uXXXX, \u{XXXX}, U+XXXX<br>
+            ※本ツールは自身の学習、開発用途で作成したものであり、外部との通信は行いません。
+        </p>
+    </footer>
+
+    <script>
+        const input = document.getElementById('textInput');
+        const output = document.getElementById('output');
+        const autoConvertToggle = document.getElementById('autoConvertToggle');
+
+        input.addEventListener('input', () => {
+            let text = input.value;
+            let cursor = input.selectionStart;
+            let newCursor = cursor;
+
+            if (autoConvertToggle.checked) {
+                // \uXXXX, \u{XXXX}, U+XXXX の形式をリアルタイムで文字に変換
+                const regex = /\\u([0-9a-fA-F]{4})|\\u\{([0-9a-fA-F]+)\}|[Uu]\+([0-9a-fA-F]{4,6})/g;
+                let match;
+                let newText = '';
+                let lastIndex = 0;
+
+                while ((match = regex.exec(text)) !== null) {
+                    newText += text.substring(lastIndex, match.index);
+                    const hexStr = match[1] || match[2] || match[3];
+                    let char;
+                    try {
+                        char = String.fromCodePoint(parseInt(hexStr, 16));
+                    } catch (e) {
+                        // 有効なUnicodeコードポイントでない場合はそのまま
+                        char = match[0];
+                    }
+                    newText += char;
+
+                    if (cursor >= regex.lastIndex) {
+                        newCursor -= (match[0].length - char.length);
+                    } else if (cursor > match.index && cursor < regex.lastIndex) {
+                        newCursor = newText.length;
+                    }
+
+                    lastIndex = regex.lastIndex;
+                }
+                newText += text.substring(lastIndex);
+
+                if (text !== newText) {
+                    input.value = newText;
+                    text = newText;
+                    input.setSelectionRange(newCursor, newCursor);
+                }
+            }
+
+            if (text.length === 0) {
+                output.innerHTML = '<span style="color: #999;">ここにUnicodeが表示されます</span>';
+                return;
+            }
+
+            // 文字列を配列に変換（サロゲートペアを正しく扱うため）
+            const chars = [...text];
+
+            const html = chars.map(char => {
+                // Unicode符号点を取得
+                const codePoint = char.codePointAt(0);
+                // 16進数に変換して整形
+                const hex = codePoint.toString(16).toUpperCase().padStart(4, '0');
+
+                return `
+                    <div class="unicode-item">
+                        <span class="char-label">${char === ' ' ? 'Space' : char}</span>
+                        U+${hex}
+                    </div>
+                `;
+            }).join('');
+
+            output.innerHTML = html;
+        });
+
+        // トグル切り替え時に即座に変換を適用する
+        autoConvertToggle.addEventListener('change', () => {
+            if (autoConvertToggle.checked) {
+                input.dispatchEvent(new Event('input'));
+            }
+        });
+    </script>
+
+</body>
+
+</html>
